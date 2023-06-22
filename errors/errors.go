@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"books/common/logger"
 	"books/common/utils"
 	"errors"
 	"fmt"
@@ -36,121 +35,6 @@ func validationResponse(err error) Body {
 		"validation_error": err,
 	}
 }
-
-type ErrorIndex struct {
-	Error error
-	Index string
-}
-
-type Queue struct {
-	item_value []ErrorIndex
-}
-
-func (q *Queue) Enqueue(err error, index string) {
-	q.item_value = append(q.item_value, ErrorIndex{Error: err, Index: index}) //used to add items
-}
-
-func (q *Queue) Dequeue() ErrorIndex {
-	item := q.item_value[0]
-	q.item_value = q.item_value[1:] //used to remove items
-	return item
-}
-
-func (q *Queue) IsEmpty() bool {
-	return len(q.item_value) == 0
-}
-
-func ErrorTraverseForUnitTest(err error) map[string][]ErrorType {
-
-	errorsMap := make(map[string][]ErrorType, 0)
-	if err == nil {
-		return errorsMap
-	}
-
-	q := Queue{}
-	q.Enqueue(err, "estimate_errors")
-	for {
-		if q.IsEmpty() {
-			break
-		}
-		cur := q.Dequeue()
-		if cur.Error == nil {
-			continue
-		}
-
-		v := ApplicationError{}
-		if errors.As(cur.Error, &v) {
-			if len(v.Errs) > 0 {
-				for _, err := range v.Errs {
-					q.Enqueue(err, cur.Index)
-				}
-				continue
-			} else {
-				tmpErrorKey := cur.Index
-				errorField, _ := v.TranslationParams["field"].(string)
-				if errorField != "" {
-					tmpErrorKey += "_"
-				}
-				tmpErrorKey += errorField
-				errorsMap[tmpErrorKey] = append(errorsMap[tmpErrorKey], (v.ErrorType))
-			}
-
-		} else {
-			for idx, e := range cur.Error.(validation.Errors) {
-				v := ApplicationError{}
-				if errors.As(e, &v) {
-					if len(v.Errs) > 0 {
-						for _, err := range v.Errs {
-							q.Enqueue(err, idx)
-						}
-						continue
-					}
-					tmpErrorKey := cur.Index
-					errorField, _ := v.TranslationParams["field"].(string)
-					if errorField != "" {
-						tmpErrorKey += "_"
-					}
-					tmpErrorKey += errorField
-					errorsMap[tmpErrorKey] = append(errorsMap[tmpErrorKey], (v.ErrorType))
-				} else {
-					q.Enqueue(e, cur.Index+"_"+idx)
-				}
-			}
-		}
-
-	}
-
-	return errorsMap
-}
-
-// var StatusCode = make(map[error]int, 0)
-
-// func SetStatusCode(err error, status int) error {
-// 	StatusCode[err] = status
-// 	fmt.Println(StatusCode[err])
-// 	return err
-// }
-
-// func GetStatusCode(err error) int {
-// 	fmt.Println(err)
-// 	errVal := err
-// 	fmt.Println(StatusCode[err])
-// 	return StatusCode[errVal]
-// }
-
-// var v = make(map[*error]int, 0)
-
-// func SetStatusCode(err *error, status int) *error {
-// 	v[err] = status
-// 	return err
-// }
-
-// func GetStatusCode(err *error) int {
-// 	return v[err]
-// }
-// func SetPointer(err error) *error {
-// 	return &err
-// }
 
 type ErrorType int
 
@@ -272,7 +156,6 @@ func (g GinError) ErrorTraverse(err error) Body {
 	aError := ApplicationError{}
 	if errors.As(err, &aError) {
 		if len(aError.Errs) == 0 {
-			logger.LogError("dfdf")
 			return GenerateErrorResponseBody(err)
 		}
 
@@ -293,14 +176,6 @@ func (g GinError) ErrorTraverse(err error) Body {
 		errBody := map[string]interface{}{field: mp}
 		return errBody
 	} else {
-		logger.LogError("dfdf")
 		return validationResponse(err)
 	}
 }
-
-// var (
-// 	// Common
-// 	ErrEstimateNotFound = SetStatusCode(SetPointer(errors.New("estimateNotFound")), http.StatusBadRequest)
-// 	ErrUnkwonError      = SetStatusCode(SetPointer(errors.New("unKnownError")), http.StatusBadRequest)
-// 	ErrUnauthorizedUser = SetStatusCode(SetPointer(errors.New("unauthorizedUser")), http.StatusBadRequest)
-// )
