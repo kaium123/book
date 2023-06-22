@@ -1,0 +1,25 @@
+version: '3.5'
+
+services:
+  books_db:
+    container_name: books_db
+    image: postgres
+    ports:
+      - "54321:5432"
+    volumes:
+      - books_db:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: books
+      POSTGRES_PASSWORD: books_54321
+    networks:
+      - books_network
+    restart: unless-stopped
+
+networks:
+  books_network:
+    driver: bridge
+
+volumes:
+  books_db: {}
+  # minio_storage: {}
+
